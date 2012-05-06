@@ -21,7 +21,7 @@ export ARCH=arm
 export CROSS_COMPILE=$PARENT_DIR/arm-2011.03/bin/arm-none-eabi-
 
 cd $KERNELDIR/
-nice -n 10 make -j4 modules || exit 1
+nice -n 10 make -j`grep 'processor' /proc/cpuinfo | wc -l` || exit 1
 
 #remove previous initramfs files
 rm -rf $INITRAMFS_TMP
@@ -39,7 +39,7 @@ mkdir -p $INITRAMFS/lib/modules
 find -name '*.ko' -exec cp -av {} $INITRAMFS_TMP/lib/modules/ \;
 ${CROSS_COMPILE}strip --strip-unneeded $INITRAMFS_TMP/lib/modules/*
 
-nice -n 10 make -j3 zImage CONFIG_INITRAMFS_SOURCE="$INITRAMFS_TMP" || exit 1
+nice -n 10 make -j`grep 'processor' /proc/cpuinfo | wc -l` zImage CONFIG_INITRAMFS_SOURCE="$INITRAMFS_TMP" || exit 1
 
 #cp $KERNELDIR/arch/arm/boot/zImage zImage
 $KERNELDIR/mkshbootimg.py $KERNELDIR/zImage $KERNELDIR/arch/arm/boot/zImage $KERNELDIR/payload.tar $KERNELDIR/recovery.tar.xz
