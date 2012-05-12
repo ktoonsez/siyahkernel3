@@ -18,7 +18,7 @@ fi
 . $KERNELDIR/.config
 
 export ARCH=arm
-export CROSS_COMPILE=$PARENT_DIR/arm-2011.03/bin/arm-none-eabi-
+export CROSS_COMPILE=$PARENT_DIR/linaro4.7-2012.04/bin/arm-eabi-
 
 cd $KERNELDIR/
 nice -n 10 make -j`grep 'processor' /proc/cpuinfo | wc -l` || exit 1
