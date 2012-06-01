@@ -23,6 +23,8 @@ export CROSS_COMPILE=$PARENT_DIR/linaro4.7-2012.04/bin/arm-eabi-
 cd $KERNELDIR/
 nice -n 10 make -j`grep 'processor' /proc/cpuinfo | wc -l` || exit 1
 
+echo "Remove old zImage"
+rm zImage
 #remove previous initramfs files
 rm -rf $INITRAMFS_TMP
 rm -rf $INITRAMFS_TMP.cpio
