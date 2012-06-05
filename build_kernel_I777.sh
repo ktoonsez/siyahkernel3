@@ -8,6 +8,9 @@ if [ "${1}" != "" ];then
   export KERNELDIR=`readlink -f ${1}`
 fi
 
+echo "Remove old zImage"
+rm zImage
+
 INITRAMFS_TMP="/tmp/initramfs-source"
 
 if [ ! -f $KERNELDIR/.config ];
@@ -23,8 +26,6 @@ export CROSS_COMPILE=$PARENT_DIR/linaro4.7-2012.04/bin/arm-eabi-
 cd $KERNELDIR/
 nice -n 10 make -j`grep 'processor' /proc/cpuinfo | wc -l` || exit 1
 
-echo "Remove old zImage"
-rm zImage
 #remove previous initramfs files
 rm -rf $INITRAMFS_TMP
 rm -rf $INITRAMFS_TMP.cpio
