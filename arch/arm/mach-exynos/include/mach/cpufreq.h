@@ -109,4 +109,3 @@ extern int exynos5250_cpufreq_init(struct exynos_dvfs_info *);
 #else
 	#warning "Should define CONFIG_ARCH_EXYNOS4(5)\n"
 #endif
-

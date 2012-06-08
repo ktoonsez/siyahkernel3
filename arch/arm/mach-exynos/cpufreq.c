@@ -947,4 +947,3 @@ ssize_t store_smooth_level(struct cpufreq_policy *policy,
 	smooth_level = level;
 	return count;
 }
-
