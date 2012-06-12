@@ -270,7 +270,7 @@ int exynos_cpufreq_lock(unsigned int nId,
 		return -EPERM;
 	}
 
-	if (cpufreq_level < exynos_info->max_support_idx
+	if (cpufreq_level < min(exynos_info->max_current_idx, exynos_info->pm_lock_idx)
 			|| cpufreq_level > exynos_info->min_support_idx) {
 		pr_warn("%s: invalid cpufreq_level(%d:%d)\n", __func__, nId,
 				cpufreq_level);
@@ -396,7 +396,7 @@ int exynos_cpufreq_upper_limit(unsigned int nId,
 		return -EPERM;
 	}
 
-	if (cpufreq_level < exynos_info->max_support_idx
+	if (cpufreq_level < min(exynos_info->max_current_idx, exynos_info->pm_lock_idx)
 			|| cpufreq_level > exynos_info->min_support_idx) {
 		pr_warn("%s: invalid cpufreq_level(%d:%d)\n", __func__, nId,
 				cpufreq_level);
@@ -599,12 +599,12 @@ static int exynos_cpufreq_notifier_event(struct notifier_block *this,
 #if defined(CONFIG_CPU_EXYNOS4210)
 		exynos_cpufreq_upper_limit_free(DVFS_LOCK_ID_PM);
 #endif
+		exynos_cpufreq_disable = false;
 		/* If current governor is userspace or performance or powersave,
 		 * restore the saved cpufreq after waekup.
 		 */
 		if (exynos_cpufreq_lock_disable)
 			exynos_restore_gov_freq(policy);
-		exynos_cpufreq_disable = false;
 
 		return NOTIFY_OK;
 	}
