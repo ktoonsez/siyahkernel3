@@ -8,6 +8,9 @@ if [ "${1}" != "" ];then
   export KERNELDIR=`readlink -f ${1}`
 fi
 
+export ARCH=arm
+export CROSS_COMPILE=$PARENT_DIR/linaro4.7-2012.04/bin/arm-eabi-
+
 echo "Remove old zImage"
 rm zImage
 
@@ -19,9 +22,6 @@ then
 fi
 
 . $KERNELDIR/.config
-
-export ARCH=arm
-export CROSS_COMPILE=$PARENT_DIR/linaro4.7-2012.04/bin/arm-eabi-
 
 cd $KERNELDIR/
 nice -n 10 make -j`grep 'processor' /proc/cpuinfo | wc -l` || exit 1
