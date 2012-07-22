@@ -3040,6 +3040,11 @@ void sec_set_main_mic_bias(bool on)
 
 int sec_set_ldo1_constraints(int disabled)
 {
+#if defined(CONFIG_TARGET_LOCALE_NAATT_TEMP)
+	/* VDD33_ADC */
+	ldo1_init_data.constraints.state_mem.disabled = disabled;
+	ldo1_init_data.constraints.state_mem.enabled = !disabled;
+#endif
 
 	struct regulator *regulator;
 
@@ -3849,6 +3854,8 @@ struct gpio_keys_button u1_buttons[] = {
 		.wakeup = 1,
 		.isr_hook = sec_debug_check_crash_key,
 	},			/* power key */
+#if !defined(CONFIG_TARGET_LOCALE_NAATT_TEMP)
+
 	{
 		.code = KEY_HOME,
 		.gpio = GPIO_OK_KEY,
@@ -3856,6 +3863,7 @@ struct gpio_keys_button u1_buttons[] = {
 		.type = EV_KEY,
 		.wakeup = 1,
 	},			/* ok key */
+#endif
 };
 
 struct gpio_keys_platform_data u1_keypad_platform_data = {
