@@ -29,8 +29,6 @@
 #include <linux/extcon.h>
 #include <linux/workqueue.h>
 #include <linux/gpio.h>
-#include <linux/extcon.h>
-#include <linux/extcon/extcon_gpio.h>
 
 struct gpio_extcon_data {
 	struct extcon_dev edev;
@@ -38,16 +36,14 @@ struct gpio_extcon_data {
 	const char *state_on;
 	const char *state_off;
 	int irq;
-	struct delayed_work work;
-	unsigned long debounce_jiffies;
+	struct work_struct work;
 };
 
 static void gpio_extcon_work(struct work_struct *work)
 {
 	int state;
 	struct gpio_extcon_data	*data =
-		container_of(to_delayed_work(work), struct gpio_extcon_data,
-			     work);
+		container_of(work, struct gpio_extcon_data, work);
 
 	state = gpio_get_value(data->gpio);
 	extcon_set_state(&data->edev, state);
@@ -58,8 +54,7 @@ static irqreturn_t gpio_irq_handler(int irq, void *dev_id)
 	struct gpio_extcon_data *extcon_data =
 	    (struct gpio_extcon_data *)dev_id;
 
-	schedule_delayed_work(&extcon_data->work,
-			      extcon_data->debounce_jiffies);
+	schedule_work(&extcon_data->work);
 	return IRQ_HANDLED;
 }
 
@@ -75,7 +70,7 @@ static ssize_t extcon_gpio_print_state(struct extcon_dev *edev, char *buf)
 
 	if (state)
 		return sprintf(buf, "%s\n", state);
-	return -EINVAL;
+	return -1;
 }
 
 static int gpio_extcon_probe(struct platform_device *pdev)
@@ -86,13 +81,8 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 
 	if (!pdata)
 		return -EBUSY;
-	if (!pdata->irq_flags) {
-		dev_err(&pdev->dev, "IRQ flag is not specified.\n");
-		return -EINVAL;
-	}
 
-	extcon_data = devm_kzalloc(&pdev->dev, sizeof(struct gpio_extcon_data),
-				   GFP_KERNEL);
+	extcon_data = kzalloc(sizeof(struct gpio_extcon_data), GFP_KERNEL);
 	if (!extcon_data)
 		return -ENOMEM;
 
@@ -100,9 +90,7 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 	extcon_data->gpio = pdata->gpio;
 	extcon_data->state_on = pdata->state_on;
 	extcon_data->state_off = pdata->state_off;
-	if (pdata->state_on && pdata->state_off)
-		extcon_data->edev.print_state = extcon_gpio_print_state;
-	extcon_data->debounce_jiffies = msecs_to_jiffies(pdata->debounce);
+	extcon_data->edev.print_state = extcon_gpio_print_state;
 
 	ret = extcon_dev_register(&extcon_data->edev, &pdev->dev);
 	if (ret < 0)
@@ -116,7 +104,7 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_set_gpio_input;
 
-	INIT_DELAYED_WORK(&extcon_data->work, gpio_extcon_work);
+	INIT_WORK(&extcon_data->work, gpio_extcon_work);
 
 	extcon_data->irq = gpio_to_irq(extcon_data->gpio);
 	if (extcon_data->irq < 0) {
@@ -124,14 +112,13 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 		goto err_detect_irq_num_failed;
 	}
 
-	ret = request_any_context_irq(extcon_data->irq, gpio_irq_handler,
-				      pdata->irq_flags, pdev->name,
-				      extcon_data);
+	ret = request_irq(extcon_data->irq, gpio_irq_handler,
+			  IRQF_TRIGGER_LOW, pdev->name, extcon_data);
 	if (ret < 0)
 		goto err_request_irq;
 
 	/* Perform initial detection */
-	gpio_extcon_work(&extcon_data->work.work);
+	gpio_extcon_work(&extcon_data->work);
 
 	return 0;
 
@@ -142,33 +129,44 @@ err_set_gpio_input:
 err_request_gpio:
 	extcon_dev_unregister(&extcon_data->edev);
 err_extcon_dev_register:
-	devm_kfree(&pdev->dev, extcon_data);
+	kfree(extcon_data);
 
 	return ret;
 }
 
-static int gpio_extcon_remove(struct platform_device *pdev)
+static int __devexit gpio_extcon_remove(struct platform_device *pdev)
 {
 	struct gpio_extcon_data *extcon_data = platform_get_drvdata(pdev);
 
-	cancel_delayed_work_sync(&extcon_data->work);
+	cancel_work_sync(&extcon_data->work);
 	gpio_free(extcon_data->gpio);
 	extcon_dev_unregister(&extcon_data->edev);
-	devm_kfree(&pdev->dev, extcon_data);
+	kfree(extcon_data);
 
 	return 0;
 }
 
-static struct platform_driver gpio_extcon = {
+static struct platform_driver gpio_extcon_driver = {
 	.probe		= gpio_extcon_probe,
-	.remove		= gpio_extcon_remove,
+	.remove		= __devexit_p(gpio_extcon_remove),
 	.driver		= {
 		.name	= "extcon-gpio",
 		.owner	= THIS_MODULE,
 	},
 };
 
-module_platform_driver(gpio_extcon);
+static int __init gpio_extcon_init(void)
+{
+	return platform_driver_register(&gpio_extcon_driver);
+}
+
+static void __exit gpio_extcon_exit(void)
+{
+	platform_driver_unregister(&gpio_extcon_driver);
+}
+
+module_init(gpio_extcon_init);
+module_exit(gpio_extcon_exit);
 
 MODULE_AUTHOR("Mike Lockwood <lockwood@android.com>");
 MODULE_DESCRIPTION("GPIO extcon driver");

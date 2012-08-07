@@ -454,7 +454,11 @@ int dhd_idletime = DHD_IDLETIME_TICKS;
 module_param(dhd_idletime, int, 0);
 
 /* Use polling */
+#ifdef CONFIG_MACH_MIDAS_02_BD
+uint dhd_poll = TRUE;
+#else
 uint dhd_poll = FALSE;
+#endif
 module_param(dhd_poll, uint, 0);
 
 /* Use interrupts */
@@ -552,11 +556,7 @@ static int dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 static int dhd_sleep_pm_callback(struct notifier_block *nfb, unsigned long action, void *ignored)
 {
 	int ret = NOTIFY_DONE;
-<<<<<<< HEAD
 #if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 39)) || defined(BCMHOST)
-=======
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 39))
->>>>>>> upstream/ics
 	switch (action) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:
@@ -621,12 +621,9 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 #ifdef BCM4334_CHIP
 	int bcn_li_bcn;
 #endif
-<<<<<<< HEAD
 #ifdef PASS_ALL_MCAST_PKTS
 	uint32 allmulti;
 #endif /* PASS_ALL_MCAST_PKTS */
-=======
->>>>>>> upstream/ics
 
 	DHD_ERROR(("%s: enter, value = %d in_suspend=%d\n",
 		__FUNCTION__, value, dhd->in_suspend));
@@ -2370,7 +2367,6 @@ static bool dhd_check_hang(struct net_device *net, dhd_pub_t *dhdp, int error)
 
 	if (!dhdp)
 		return FALSE;
-<<<<<<< HEAD
 
 	dhd = (dhd_info_t *)dhdp->info;
 	if (dhd->thr_sysioc_ctl.thr_pid < 0) {
@@ -2378,18 +2374,6 @@ static bool dhd_check_hang(struct net_device *net, dhd_pub_t *dhdp, int error)
 		return FALSE;
 	}
 
-=======
-#ifdef BCM4334_CHIP
-	if ((error == -ETIMEDOUT) || (error == -EREMOTEIO) || (dhdp->tx_seqerr_cnt >= 2)
-		|| ((dhdp->busstate == DHD_BUS_DOWN)&&(!dhdp->dongle_reset))) {
-		DHD_ERROR(("%s: Event HANG send up due to re=%d te=%d e=%d s=%d tse=%d\n",
-			__FUNCTION__, dhdp->rxcnt_timeout, dhdp->txcnt_timeout, error,
-			dhdp->busstate, dhdp->tx_seqerr_cnt));
-		net_os_send_hang_message(net);
-		return TRUE;
-	}
-#else
->>>>>>> upstream/ics
 	if ((error == -ETIMEDOUT) || (error == -EREMOTEIO)
 		|| ((dhdp->busstate == DHD_BUS_DOWN)&&(!dhdp->dongle_reset))) {
 		DHD_ERROR(("%s: Event HANG send up due to  re=%d te=%d e=%d s=%d\n", __FUNCTION__,
@@ -2397,7 +2381,6 @@ static bool dhd_check_hang(struct net_device *net, dhd_pub_t *dhdp, int error)
 		net_os_send_hang_message(net);
 		return TRUE;
 	}
-#endif
 	return FALSE;
 }
 
@@ -2726,9 +2709,6 @@ dhd_stop(struct net_device *net)
 	dhd->pub.hang_was_sent = 0;
 	dhd->pub.rxcnt_timeout = 0;
 	dhd->pub.txcnt_timeout = 0;
-#ifdef BCM4334_CHIP
-	dhd->pub.tx_seqerr_cnt = 0;
-#endif
 	OLD_MOD_DEC_USE_COUNT;
 exit:
 	DHD_OS_WAKE_UNLOCK(&dhd->pub);
@@ -3836,7 +3816,6 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 
 #ifdef PKT_FILTER_SUPPORT
 	/* Setup defintions for pktfilter , enable in suspend */
-<<<<<<< HEAD
 	dhd->pktfilter_count = 4;
 #ifdef GAN_LITE_NAT_KEEPALIVE_FILTER
 	/* Setup filter to block broadcast and NAT Keepalive packets */
@@ -3856,12 +3835,12 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		/* customer want to get IPV4 multicast packets */
 #else
 #error Customer want to filter out all IPV6 packets
-=======
-	dhd->pktfilter_count = 1;
-	/* Setup filter to allow unicast only */
->>>>>>> upstream/ics
 	dhd->pktfilter[0] = "100 0 0 0 0x01 0x00";
-
+#endif
+	dhd->pktfilter[1] = NULL;
+	dhd->pktfilter[2] = NULL;
+	dhd->pktfilter[3] = NULL;
+#endif /* GAN_LITE_NAT_KEEPALIVE_FILTER */
 #if defined(SOFTAP)
 	if (ap_fw_loaded) {
 		int i;

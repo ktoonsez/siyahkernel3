@@ -67,8 +67,4 @@ config GPU_CLOCK_CONTROL
 	depends on VIDEO_MALI400MP
 	default y
 	help
-<<<<<<< HEAD
 	  This enables a sysfs interface to control gpu clock speeds.
-=======
-	  This enables a sysfs interface to control gpu clock speeds.
->>>>>>> upstream/ics

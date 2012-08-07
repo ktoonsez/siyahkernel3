@@ -49,26 +49,20 @@
 #define WRITE_MACADDR
 #endif
 
-<<<<<<< HEAD
 #ifdef CONFIG_ARCH_MSM7X30
 #define HW_OOB
 #define READ_MACADDR
 #endif
 
-=======
->>>>>>> upstream/ics
 #ifdef CONFIG_MACH_GC1
 #undef USE_CID_CHECK
 #define READ_MACADDR
 #endif
 
-<<<<<<< HEAD
 #ifdef CONFIG_MACH_P10
 #define READ_MACADDR
 #endif
 
-=======
->>>>>>> upstream/ics
 /* REGION CODE */
 
 #if (WLAN_REGION_CODE >= 100) && (WLAN_REGION_CODE < 200) /*EUR*/

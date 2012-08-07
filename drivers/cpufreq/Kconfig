@@ -313,12 +313,6 @@ config CPU_FREQ_GOV_SMARTASS2
 	help
 	  'smartassV2' - a "smart" governor
 
-<<<<<<< HEAD
-=======
-config CPU_FREQ_GOV_SLP
-	tristate "'slp' cpufreq policy governor"
-
->>>>>>> upstream/ics
 config CPU_FREQ_DVFS_MONITOR
 	bool "dvfs monitor"
 	depends on CPU_FREQ

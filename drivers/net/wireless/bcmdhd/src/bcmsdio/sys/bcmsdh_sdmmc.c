@@ -159,7 +159,6 @@ sdioh_attach(osl_t *osh, void *bar0, uint irq)
 	/* Claim host controller */
 	if (gInstance->func[1]) {
 		sdio_claim_host(gInstance->func[1]);
-<<<<<<< HEAD
 
 		sd->client_block_size[1] = 64;
 		err_ret = sdio_set_block_size(gInstance->func[1], 64);
@@ -174,23 +173,7 @@ sdioh_attach(osl_t *osh, void *bar0, uint irq)
 		MFREE(sd->osh, sd, sizeof(sdioh_info_t));
 		return NULL;
 	}
-=======
 
-		sd->client_block_size[1] = 64;
-		err_ret = sdio_set_block_size(gInstance->func[1], 64);
-		if (err_ret) {
-			sd_err(("bcmsdh_sdmmc: Failed to set F1 blocksize\n"));
-		}
->>>>>>> upstream/ics
-
-		/* Release host controller F1 */
-		sdio_release_host(gInstance->func[1]);
-	}else {
-		sd_err(("%s:gInstance->func[1] is null\n", __FUNCTION__));
-		MFREE(sd->osh, sd, sizeof(sdioh_info_t));
-		return NULL;
-	}
-	
 	if (gInstance->func[2]) {
 		/* Claim host controller F2 */
 		sdio_claim_host(gInstance->func[2]);

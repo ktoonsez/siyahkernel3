@@ -1079,16 +1079,12 @@ wl_cfgp2p_set_management_ie(struct wl_priv *wl, struct net_device *ndev, s32 bss
 				pos += ie_len;
 			}
 		}
-<<<<<<< HEAD
 		if (total_ie_buf_len) {
 			ret  = wldev_iovar_setbuf_bsscfg(ndev, "vndr_ie", g_mgmt_ie_buf, total_ie_buf_len,
 					wl->ioctl_buf, WLC_IOCTL_MAXLEN, bssidx, &wl->ioctl_buf_sync);
 			if (ret)
 				CFGP2P_ERR(("vndr ie set error : %d\n", ret));
 		}
-=======
-
->>>>>>> upstream/ics
 	}
 #undef IE_TYPE
 #undef IE_TYPE_LEN
@@ -1444,13 +1440,10 @@ wl_cfgp2p_discover_listen(struct wl_priv *wl, s32 channel, u32 duration_ms)
 	else
 		wl_clr_p2p_status(wl, LISTEN_EXPIRED);
 #endif /* not WL_CFG80211_VSDB_PRIORITIZE_SCAN_REQUEST */
-<<<<<<< HEAD
 	if (wl_to_p2p_bss_saved_ie(wl, bssidx).p2p_probe_res_ie_len && dhd && dhd->in_suspend) {
 		/* Clear WLC_E_P2P_PROBREQ_MSG in case of early suspend and p2p ie != 0 */
 		enable = false;
 	}
-=======
->>>>>>> upstream/ics
 
 	if (wl_add_remove_eventmsg(netdev, WLC_E_P2P_PROBREQ_MSG, enable) != BCME_OK) {
 			CFGP2P_ERR((" failed to set WLC_E_P2P_PROPREQ_MSG\n"));

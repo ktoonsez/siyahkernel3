@@ -434,7 +434,6 @@ static int sd_select_driver_type(struct mmc_card *card, u8 *status)
 
 	if (card->host->caps & MMC_CAP_DRIVER_TYPE_D)
 		host_drv_type |= SD_DRIVER_TYPE_D;
-<<<<<<< HEAD
 
 	if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_A)
 		card_drv_type |= SD_DRIVER_TYPE_A;
@@ -457,30 +456,6 @@ static int sd_select_driver_type(struct mmc_card *card, u8 *status)
 		host_drv_type, card_drv_type);
 	mmc_host_clk_release(card->host);
 
-=======
-
-	if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_A)
-		card_drv_type |= SD_DRIVER_TYPE_A;
-
-	if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_C)
-		card_drv_type |= SD_DRIVER_TYPE_C;
-
-	if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_D)
-		card_drv_type |= SD_DRIVER_TYPE_D;
-
-	/*
-	 * The drive strength that the hardware can support
-	 * depends on the board design.  Pass the appropriate
-	 * information and let the hardware specific code
-	 * return what is possible given the options
-	 */
-	mmc_host_clk_hold(card->host);
-	drive_strength = card->host->ops->select_drive_strength(
-		card->sw_caps.uhs_max_dtr,
-		host_drv_type, card_drv_type);
-	mmc_host_clk_release(card->host);
-
->>>>>>> upstream/ics
 	err = mmc_sd_switch(card, 1, 2, drive_strength, status);
 	if (err)
 		return err;
@@ -959,7 +934,7 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	if (!mmc_host_is_spi(host)) {
 		err = mmc_send_relative_addr(host, &card->rca);
 		if (err)
-			goto free_card;
+			return err;
 
 		mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
 	}
@@ -967,7 +942,7 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	if (!oldcard) {
 		err = mmc_sd_get_csd(host, card);
 		if (err)
-			goto free_card;
+			return err;
 
 		mmc_decode_cid(card);
 	}
@@ -978,7 +953,7 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	if (!mmc_host_is_spi(host)) {
 		err = mmc_select_card(card);
 		if (err)
-			goto free_card;
+			return err;
 	}
 
 	err = mmc_sd_setup_card(host, card, oldcard != NULL);

@@ -35,7 +35,6 @@
 #include <linux/mman.h>
 #include <linux/pagemap.h>
 #include <linux/shmem_fs.h>
-#include <linux/dma-buf.h>
 #include "drmP.h"
 
 /** @file drm_gem.c
@@ -141,11 +140,12 @@ int drm_gem_object_init(struct drm_device *dev,
 	obj->dev = dev;
 	obj->filp = shmem_file_setup("drm mm object", size, VM_NORESERVE);
 	if (IS_ERR(obj->filp))
-		return PTR_ERR(obj->filp);
+		return -ENOMEM;
 
 	kref_init(&obj->refcount);
 	atomic_set(&obj->handle_count, 0);
 	obj->size = size;
+	obj->prime_fd = -1;
 
 	return 0;
 }
@@ -167,7 +167,7 @@ int drm_gem_private_object_init(struct drm_device *dev,
 	kref_init(&obj->refcount);
 	atomic_set(&obj->handle_count, 0);
 	obj->size = size;
-
+	obj->prime_fd = -1;
 	return 0;
 }
 EXPORT_SYMBOL(drm_gem_private_object_init);
@@ -232,10 +232,6 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 	/* Release reference and decrement refcount. */
 	idr_remove(&filp->object_idr, handle);
 	spin_unlock(&filp->table_lock);
-
-	if (obj->import_attach)
-		drm_prime_remove_imported_buf_handle(&filp->prime,
-				obj->import_attach->dmabuf);
 
 	if (dev->driver->gem_close_object)
 		dev->driver->gem_close_object(obj, filp);
@@ -532,10 +528,6 @@ drm_gem_object_release_handle(int id, void *ptr, void *data)
 	struct drm_gem_object *obj = ptr;
 	struct drm_device *dev = obj->dev;
 
-	if (obj->import_attach)
-		drm_prime_remove_imported_buf_handle(&file_priv->prime,
-				obj->import_attach->dmabuf);
-
 	if (dev->driver->gem_close_object)
 		dev->driver->gem_close_object(obj, file_priv);
 
@@ -670,9 +662,6 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_hash_item *hash;
 	int ret = 0;
 
-	if (drm_device_is_unplugged(dev))
-		return -ENODEV;
-
 	mutex_lock(&dev->struct_mutex);
 
 	if (drm_ht_find_item(&mm->offset_hash, vma->vm_pgoff, &hash)) {
@@ -712,6 +701,7 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	 */
 	drm_gem_object_reference(obj);
 
+	vma->vm_file = filp;	/* Needed for drm_vm_open() */
 	drm_vm_open_locked(vma);
 
 out_unlock:

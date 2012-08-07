@@ -116,7 +116,7 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 	int height = mode_cmd->height;
 	u32 bpp, depth;
 
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
+	drm_helper_get_fb_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
 
 	/* need to align pitch with crtc limits */
 	mode_cmd->pitches[0] = radeon_align_pitch(rdev, mode_cmd->width, bpp,
@@ -141,7 +141,7 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 		tiling_flags = RADEON_TILING_MACRO;
 
 #ifdef __BIG_ENDIAN
-	switch (bpp) {
+	switch (mode_cmd->bpp) {
 	case 32:
 		tiling_flags |= RADEON_TILING_SWAP_32BIT;
 		break;
@@ -164,10 +164,7 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 	ret = radeon_bo_reserve(rbo, false);
 	if (unlikely(ret != 0))
 		goto out_unref;
-	/* Only 27 bit offset for legacy CRTC */
-	ret = radeon_bo_pin_restricted(rbo, RADEON_GEM_DOMAIN_VRAM,
-				       ASIC_IS_AVIVO(rdev) ? 0 : 1 << 27,
-				       NULL);
+	ret = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_VRAM, NULL);
 	if (ret) {
 		radeon_bo_unreserve(rbo);
 		goto out_unref;
@@ -212,11 +209,6 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 							  sizes->surface_depth);
 
 	ret = radeonfb_create_pinned_object(rfbdev, &mode_cmd, &gobj);
-	if (ret) {
-		DRM_ERROR("failed to create fbcon object %d\n", ret);
-		return ret;
-	}
-
 	rbo = gem_to_radeon_bo(gobj);
 
 	/* okay we have an object now allocate the framebuffer */
@@ -228,11 +220,7 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 
 	info->par = rfbdev;
 
-	ret = radeon_framebuffer_init(rdev->ddev, &rfbdev->rfb, &mode_cmd, gobj);
-	if (ret) {
-		DRM_ERROR("failed to initalise framebuffer %d\n", ret);
-		goto out_unref;
-	}
+	radeon_framebuffer_init(rdev->ddev, &rfbdev->rfb, &mode_cmd, gobj);
 
 	fb = &rfbdev->rfb.base;
 
@@ -244,7 +232,7 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 
 	strcpy(info->fix.id, "radeondrmfb");
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
 
 	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &radeonfb_ops;
@@ -266,7 +254,11 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 	info->apertures->ranges[0].base = rdev->ddev->mode_config.fb_base;
 	info->apertures->ranges[0].size = rdev->mc.aper_size;
 
-	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
+	info->pixmap.size = 64*1024;
+	info->pixmap.buf_align = 8;
+	info->pixmap.access_align = 32;
+	info->pixmap.flags = FB_PIXMAP_SYSTEM;
+	info->pixmap.scan_align = 1;
 
 	if (info->screen_base == NULL) {
 		ret = -ENOSPC;
@@ -283,7 +275,7 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 	DRM_INFO("vram apper at 0x%lX\n",  (unsigned long)rdev->mc.aper_base);
 	DRM_INFO("size %lu\n", (unsigned long)radeon_bo_size(rbo));
 	DRM_INFO("fb depth is %d\n", fb->depth);
-	DRM_INFO("   pitch is %d\n", fb->pitches[0]);
+	DRM_INFO("   pitch is %d\n", fb->pitch);
 
 	vga_switcheroo_client_fb_set(rdev->ddev->pdev, info);
 	return 0;

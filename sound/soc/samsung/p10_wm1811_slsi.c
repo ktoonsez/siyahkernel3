@@ -18,7 +18,6 @@
 #include <linux/workqueue.h>
 #include <linux/mfd/wm8994/registers.h>
 #include <linux/input.h>
-#include <linux/suspend.h>
 
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
@@ -27,7 +26,6 @@
 #include <sound/jack.h>
 
 #include <mach/regs-clock.h>
-#include <mach/pmu.h>
 
 #include "i2s.h"
 #include "s3c-i2s-v2.h"
@@ -41,23 +39,41 @@
 #define WM8994_DAI_AIF3		2
 
 #define EAR_SEL EXYNOS4210_GPJ0(4)
-/*
 #define MANAGE_MCLK1
-*/
 
 static bool p10_fll1_active;
 
-static bool xclkout_enabled = false;
-
 static void p10_set_mclk(bool on)
 {
+	u32 val;
+	u32 __iomem *xusbxti_sys_pwr;
+	u32 __iomem *pmu_debug;
+
+	xusbxti_sys_pwr = ioremap(0x10041280, 4);
+	pmu_debug = ioremap(0x10040A00, 4);
+
 	if (on) {
-		exynos5_pmu_xclkout_set(1, XCLKOUT_XXTI);
-		xclkout_enabled = true;
+		val = readl(xusbxti_sys_pwr);
+		val |= 0x0001;			/* SYS_PWR_CFG is enabled */
+		writel(val, xusbxti_sys_pwr);
+
+		val = readl(pmu_debug);
+		val &= ~(0b11111 << 8);
+		val |= 0b10000 << 8;		/* Selected XUSBXTI */
+		val &= ~(0x0001);		/* CLKOUT is enabled */
+		writel(val, pmu_debug);
 	} else {
-		exynos5_pmu_xclkout_set(0, XCLKOUT_XXTI);
-		xclkout_enabled = false;
+		val = readl(xusbxti_sys_pwr);
+		val &= ~(0x0001);		/* SYS_PWR_CFG is disabled */
+		writel(val, xusbxti_sys_pwr);
+
+		val = readl(pmu_debug);
+		val |= 0x0001;			/* CLKOUT is disabled */
+		writel(val, pmu_debug);
 	}
+
+	iounmap(xusbxti_sys_pwr);
+	iounmap(pmu_debug);
 
 	mdelay(10);
 }
@@ -83,7 +99,9 @@ static void p10_start_fll1(struct snd_soc_dai *aif1_dai)
 	 * provide a high frequency reference for the FLL, giving improved
 	 * performance.
 	 */
-	p10_set_mclk(1);	/* forced enable MCLK */
+#ifdef MANAGE_MCLK1
+	p10_set_mclk(1);
+#endif
 
 	/* Switch the FLL */
 	ret = snd_soc_dai_set_pll(aif1_dai, WM8994_FLL1, WM8994_FLL_SRC_MCLK1,
@@ -96,7 +114,9 @@ static void p10_start_fll1(struct snd_soc_dai *aif1_dai)
 	 * FLL will maintain frequency with no reference so this saves
 	 * power from the reference clock.
 	 */
-	p10_set_mclk(false);
+	/*
+	p10_set_mclk(0);
+	*/
 #endif
 
 	/* Then switch AIF1CLK to it */
@@ -161,14 +181,14 @@ static int p10_wm1811_aif1_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_sysclk(cpu_dai, SAMSUNG_I2S_OPCLK,
-					0, MOD_OPCLK_PCLK);
-	if (ret < 0)
-		return ret;
-
 #if 0
 	ret = snd_soc_dai_set_sysclk(codec_dai, WM8994_SYSCLK_FLL1,
 					pll_out, SND_SOC_CLOCK_IN);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_dai_set_sysclk(cpu_dai, SAMSUNG_I2S_OPCLK,
+					0, MOD_OPCLK_PCLK);
 	if (ret < 0)
 		return ret;
 #else
@@ -399,6 +419,24 @@ static int mic_sel_set(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+static int ext_amp_bias(struct snd_soc_dapm_widget *w,
+			struct snd_kcontrol *k, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+
+	printk("[%s] %s: event %d\n", codec->name,  __func__, SND_SOC_DAPM_EVENT_ON(event));
+
+	if(SND_SOC_DAPM_EVENT_ON(event)){
+		gpio_set_value(GPIO_AMP_L_INT, 1);
+		gpio_set_value(GPIO_AMP_R_INT, 1);
+	} else {
+		gpio_set_value(GPIO_AMP_L_INT, 0);
+		gpio_set_value(GPIO_AMP_R_INT, 0);
+	}
+
+	return 0;
+}
+
 const char *mic_sel_text[] = {
 	"Sub", "Headset"
 };
@@ -411,6 +449,7 @@ static const struct snd_kcontrol_new p10_controls[] = {
 	SOC_DAPM_PIN_SWITCH("SPK"),
 	SOC_DAPM_PIN_SWITCH("RCV"),
 	SOC_DAPM_PIN_SWITCH("LINE"),
+
 	SOC_ENUM_EXT("MIC Select", mic_sel_enum, mic_sel_get, mic_sel_set),
 };
 
@@ -418,7 +457,8 @@ const struct snd_soc_dapm_widget p10_dapm_widgets[] = {
 	SND_SOC_DAPM_HP("HP", NULL),
 	SND_SOC_DAPM_SPK("SPK", NULL),
 	SND_SOC_DAPM_SPK("RCV", NULL),
-	SND_SOC_DAPM_SPK("LINE", NULL),
+	SND_SOC_DAPM_SPK("LINE", ext_amp_bias),
+
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Main Mic", NULL),
 	SND_SOC_DAPM_MIC("Sub Mic", NULL),
@@ -591,7 +631,7 @@ static int p10_wm1811_init_paiftx(struct snd_soc_pcm_runtime *rtd)
 	int ret;
 
 #ifndef MANAGE_MCLK1
-	p10_set_mclk(true);
+	p10_set_mclk(1);
 #endif
 
 	ret = snd_soc_add_controls(codec, p10_controls,
@@ -684,7 +724,6 @@ static struct snd_soc_dai_link p10_dai[] = {
 		.platform_name = "snd-soc-dummy",
 		.codec_name = "wm8994-codec",
 		.ops = &p10_wm1811_aif2_ops,
-		.ignore_suspend = 1,
 	},
 	{
 		.name = "P10_WM1811 BT",
@@ -694,7 +733,6 @@ static struct snd_soc_dai_link p10_dai[] = {
 		.platform_name = "snd-soc-dummy",
 		.codec_name = "wm8994-codec",
 		.ops = &p10_wm1811_aif3_ops,
-		.ignore_suspend = 1,
 	},
 	{ /* Primary DAI i/f */
 		.name = "WM8994 AIF1",
@@ -707,36 +745,17 @@ static struct snd_soc_dai_link p10_dai[] = {
 	},
 };
 
-static int p10_card_suspend(struct snd_soc_card *card)
-{
-	p10_set_mclk(false);
-	exynos5_sys_powerdown_xxti_control(xclkout_enabled ? 1 : 0);
-
-	return 0;
-}
-
-static int p10_card_resume(struct snd_soc_card *card)
-{
-	p10_set_mclk(true);
-
-	return 0;
-}
-
+#if 0	/* To Do */
 static int p10_set_bias_level(struct snd_soc_card *card,
-				struct snd_soc_dapm_context *dapm,
 				enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *aif1_dai = card->rtd[0].codec_dai;
-
-	if (dapm->dev != aif1_dai->dev)
-		return 0;
-
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
 		/* When transitioning to active modes set AIF1 up for
 		* 44.1kHz so we can always activate AIF1 without reclocking.
 		*/
-		p10_start_fll1(aif1_dai);
+		if (card->bias_level == SND_SOC_BIAS_STANDBY)
+			p10_start_fll1(aif1_dai);
 		break;
 
 	default:
@@ -747,16 +766,9 @@ static int p10_set_bias_level(struct snd_soc_card *card,
 }
 
 static int p10_set_bias_level_post(struct snd_soc_card *card,
-				struct snd_soc_dapm_context *dapm,
-				enum snd_soc_bias_level level)
+					 enum snd_soc_bias_level level)
 {
-	struct snd_soc_codec *codec = card->rtd->codec;
-	struct snd_soc_dai *aif1_dai = card->rtd[0].codec_dai;
-	struct snd_soc_dai *aif2_dai = card->rtd[1].codec_dai;
 	int ret;
-
-	if (dapm->dev != aif1_dai->dev)
-		return 0;
 
 	switch (level) {
 	case SND_SOC_BIAS_STANDBY:
@@ -764,7 +776,7 @@ static int p10_set_bias_level_post(struct snd_soc_card *card,
 		 * directly for minimum power consumptin for accessory
 		 * detection.
 		 */
-		if (card->dapm.bias_level == SND_SOC_BIAS_PREPARE) {
+		if (card->bias_level == SND_SOC_BIAS_PREPARE) {
 			dev_info(aif1_dai->dev, "Moving to STANDBY\n");
 
 			ret = snd_soc_dai_set_sysclk(aif2_dai,
@@ -775,7 +787,8 @@ static int p10_set_bias_level_post(struct snd_soc_card *card,
 				dev_err(codec->dev, "Failed to switch to MCLK2\n");
 
 			ret = snd_soc_dai_set_pll(aif2_dai, WM8994_FLL2,
-							0, 0, 0);
+							WM8994_FLL_SRC_MCLK2,
+							32768, 0);
 
 			if (ret < 0)
 				dev_err(codec->dev,
@@ -790,24 +803,24 @@ static int p10_set_bias_level_post(struct snd_soc_card *card,
 					"Failed to switch to MCLK2\n");
 
 			ret = snd_soc_dai_set_pll(aif1_dai, WM8994_FLL1,
-						  0, 0, 0);
+						  WM8994_FLL_SRC_MCLK2,
+						  32768, 0);
 			if (ret < 0)
 				dev_err(codec->dev,
 					"Failed to stop FLL1\n");
 
 			p10_fll1_active = false;
-
-			p10_set_mclk(false);
 		}
 		break;
 	default:
 		break;
 	}
 
-	card->dapm.bias_level = level;
+	card->bias_level = level;
 
 	return 0;
 }
+#endif
 
 static struct snd_soc_card p10 = {
 	.name = "P10_WM1811",
@@ -817,12 +830,10 @@ static struct snd_soc_card p10 = {
 	 * changes the num_link = 2 or ARRAY_SIZE(p10_dai). */
 	.num_links = ARRAY_SIZE(p10_dai),
 
-
+#if 0	/* To Do */
 	.set_bias_level = p10_set_bias_level,
-	.set_bias_level_post = p10_set_bias_level_post,
-
-	.suspend_post = p10_card_suspend,
-	.resume_pre = p10_card_resume
+	.set_bias_level_post = p10_set_bias_level_post
+#endif
 };
 
 static struct platform_device *p10_snd_device;
@@ -841,6 +852,12 @@ static int __init p10_audio_init(void)
 	if (ret < 0)
 		pr_err("Failed to request EAR_SEL: %d\n", ret);
 #endif
+
+	gpio_request_one(GPIO_AMP_L_INT, GPIOF_OUT_INIT_LOW, "AMP_L_INT");
+	gpio_set_value(GPIO_AMP_L_INT, 0);
+
+	gpio_request_one(GPIO_AMP_R_INT, GPIOF_OUT_INIT_LOW, "AMP_R_INT");
+	gpio_set_value(GPIO_AMP_R_INT, 0);
 
 	p10_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!p10_snd_device)

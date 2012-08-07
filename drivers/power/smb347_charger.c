@@ -30,6 +30,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <plat/gpio-cfg.h>
+#include <mach/gpio-p4.h>
 
 /* Slave address */
 #define SMB347_SLAVE_ADDR		0x0C
@@ -81,11 +82,6 @@ static struct smb347_chg_data *smb347_chg;
 
 static bool smb347_check_powersource(struct smb347_chg_data *chg)
 {
-#if defined(CONFIG_MACH_P4NOTE)
-	/* p4 note pq has no problem for charger power */
-	return true;
-#endif
-
 	/* Power source needs for only P4C H/W rev0.2 */
 	if (system_rev != 2)
 		return true;
@@ -174,13 +170,13 @@ static void smb347_test_read(void)
 static void smb347_enable_charging(struct smb347_chg_data *chg)
 {
 	pr_info("%s\n", __func__);
-	smb347_i2c_write(chg->client, SMB347_COMMAND_A, 0x82);
+	gpio_set_value(chg->pdata->enable, 0);
 }
 
 static void smb347_disable_charging(struct smb347_chg_data *chg)
 {
 	pr_info("%s\n", __func__);
-	smb347_i2c_write(chg->client, SMB347_COMMAND_A, 0x80);
+	gpio_set_value(chg->pdata->enable, 1);
 }
 
 static void smb347_charger_init(struct smb347_chg_data *chg)
@@ -205,10 +201,10 @@ static void smb347_charger_init(struct smb347_chg_data *chg)
 	/* Pre-charge curr 250mA, Term curr 250mA */
 	smb347_i2c_write(chg->client, SMB347_CHARGE_CURRENT, 0xDD);
 
-	/* Pin enable control : Charger enable control EN Pin - I2C */
+	/* Pin enable control : Charger enable control EN Pin - Active Low */
 	/*  : USB5/1/HC or USB9/1.5/HC Control - Register Control */
 	/*  : USB5/1/HC Input state - Tri-state Input */
-	smb347_i2c_write(chg->client, SMB347_PIN_ENABLE_CONTROL, 0x00);
+	smb347_i2c_write(chg->client, SMB347_PIN_ENABLE_CONTROL, 0x60);
 
 	/* Input current limit : DCIN 1800mA, USBIN HC 1800mA */
 	smb347_i2c_write(chg->client, SMB347_INPUT_CURRENTLIMIT, 0x66);
@@ -227,6 +223,17 @@ static void smb347_charger_init(struct smb347_chg_data *chg)
 
 	/* Therm control : Therm monitor disable */
 	smb347_i2c_write(chg->client, SMB347_THERM_CONTROL_A, 0xBF);
+
+	/* USB selection : USB2.0(100mA/500mA), INOK polarity */
+	if ((system_rev >= 2) && (system_rev <= 5)) {
+		/* Active high */
+		smb347_i2c_write(chg->client, SMB347_SYSOK_USB30_SELECTION,
+		0x09);
+	} else {
+		/* Active low */
+		smb347_i2c_write(chg->client, SMB347_SYSOK_USB30_SELECTION,
+		0x08);
+	}
 
 	/* Other control */
 	smb347_i2c_write(chg->client, SMB347_OTHER_CONTROL_A, 0x0D);
@@ -383,6 +390,7 @@ int smb347_get_charging_current(void)
 void smb347_set_charging_current(int set_current)
 {
 	struct smb347_chg_data *chg = smb347_chg;
+	u8 data = 0;
 
 	if (set_current > 450) {
 		/* CommandB : High-current mode */
@@ -445,7 +453,6 @@ static int smb347_i2c_probe
 	return 0;
 
 err_pdata:
-	kfree(chg->callbacks);
 	kfree(chg);
 	return ret;
 }

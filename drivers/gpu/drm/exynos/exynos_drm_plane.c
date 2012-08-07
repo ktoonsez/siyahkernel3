@@ -22,14 +22,6 @@ struct exynos_plane {
 	bool				enabled;
 };
 
-static const uint32_t formats[] = {
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_ARGB8888,
-	DRM_FORMAT_NV12,
-	DRM_FORMAT_NV12M,
-	DRM_FORMAT_NV12MT,
-};
-
 static int
 exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		     struct drm_framebuffer *fb, int crtc_x, int crtc_y,
@@ -41,6 +33,8 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		container_of(plane, struct exynos_plane, base);
 	struct exynos_drm_overlay *overlay = &exynos_plane->overlay;
 	struct exynos_drm_crtc_pos pos;
+	unsigned int x = src_x >> 16;
+	unsigned int y = src_y >> 16;
 	int ret;
 
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
@@ -51,12 +45,10 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	pos.crtc_w = crtc_w;
 	pos.crtc_h = crtc_h;
 
-	/* considering 16.16 fixed point of source values */
-	pos.fb_x = src_x >> 16;
-	pos.fb_y = src_y >> 16;
-	pos.src_w = src_w >> 16;
-	pos.src_h = src_h >> 16;
+	pos.fb_x = x;
+	pos.fb_y = y;
 
+	/* TODO: scale feature */
 	ret = exynos_drm_overlay_update(overlay, fb, &crtc->mode, &pos);
 	if (ret < 0)
 		return ret;
@@ -123,9 +115,9 @@ int exynos_plane_init(struct drm_device *dev, unsigned int nr)
 
 	exynos_plane->overlay.zpos = DEFAULT_ZPOS;
 
+	/* TODO: format */
 	return drm_plane_init(dev, &exynos_plane->base, possible_crtcs,
-			      &exynos_plane_funcs, formats, ARRAY_SIZE(formats),
-			      false);
+			      &exynos_plane_funcs, NULL, 0);
 }
 
 int exynos_plane_set_zpos_ioctl(struct drm_device *dev, void *data,
@@ -141,13 +133,6 @@ int exynos_plane_set_zpos_ioctl(struct drm_device *dev, void *data,
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
-
-	if (zpos_req->zpos < 0 || zpos_req->zpos >= MAX_PLANE) {
-		if (zpos_req->zpos != DEFAULT_ZPOS) {
-			DRM_ERROR("zpos not within limits\n");
-			return -EINVAL;
-		}
-	}
 
 	mutex_lock(&dev->mode_config.mutex);
 

@@ -30,17 +30,12 @@
 
 #define	EPI_MINOR_VERSION	15
 
-<<<<<<< HEAD
 #define	EPI_RC_NUMBER		15
-=======
-#define	EPI_RC_NUMBER		11
->>>>>>> upstream/ics
 
 #define	EPI_INCREMENTAL_NUMBER	0
 
 #define	EPI_BUILD_NUMBER	0
 
-<<<<<<< HEAD
 #define	EPI_VERSION		1, 15, 15, 0
 
 #define	EPI_VERSION_NUM		0x010f0f00
@@ -49,15 +44,5 @@
 
 
 #define	EPI_VERSION_STR		"1.15.15"
-=======
-#define	EPI_VERSION		1, 15, 11, 0
-
-#define	EPI_VERSION_NUM		0x010f0900
-
-#define EPI_VERSION_DEV		1.15.11
-
-
-#define	EPI_VERSION_STR		"1.15.11 (WFD)"
->>>>>>> upstream/ics
 
 #endif /* _epivers_h_ */

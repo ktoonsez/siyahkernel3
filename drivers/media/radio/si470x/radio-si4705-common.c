@@ -47,12 +47,11 @@ module_param(band, ushort, 0444);
 MODULE_PARM_DESC(band, "Band: 0=87.5..108MHz *1=76..108MHz* 2=76..90MHz");
 
 /* De-emphasis */
-/* 0: V4L2_DEEMPHASIS_DISABLED */
-/* 1: V4L2_DEEMPHASIS_50_uS (Europe, Australia, Japan) */
-/* 2: V4L2_DEEMPHASIS_75_uS (South Korea, USA) */
+/* 0: 75 us (USA) */
+/* 1: 50 us (Europe, Australia, Japan) */
 static unsigned short de = 1;
 module_param(de, ushort, 0444);
-MODULE_PARM_DESC(de, "De-emphasis: 0=Disabled *1=50us* 2=75us");
+MODULE_PARM_DESC(de, "De-emphasis: 0=75us *1=50us*");
 
 /* Tune timeout */
 static unsigned int tune_timeout = 3000;
@@ -64,48 +63,10 @@ static unsigned int seek_timeout = 5000;
 module_param(seek_timeout, uint, 0644);
 MODULE_PARM_DESC(seek_timeout, "Seek timeout: *5000*");
 
-/**************************************************************************
- * Defines
- **************************************************************************/
-
-/* si4705 uses 10kHz unit */
-#define FREQ_DEV_TO_V4L2(x)	(x * FREQ_MUL / 100)
-#define FREQ_V4L2_TO_DEV(x)	(x * 100 / FREQ_MUL)
 
 /**************************************************************************
  * Generic Functions
  **************************************************************************/
-/*
- * si4705_set_deemphasis
- */
-static int si4705_set_deemphasis(struct si4705_device *radio,
-					unsigned int deemphasis)
-{
-	int retval;
-	unsigned short chip_de;
-
-	switch (deemphasis) {
-	case V4L2_DEEMPHASIS_DISABLED:
-		return 0;
-	case V4L2_DEEMPHASIS_50_uS: /* Europe, Australia, Japan */
-		chip_de = 1;
-		break;
-	case V4L2_DEEMPHASIS_75_uS: /* South Korea, USA */
-		chip_de = 0;
-		break;
-	default:
-		retval = -EINVAL;
-		goto done;
-	}
-
-	retval = si4705_set_property(radio, FM_DEEMPHASIS, chip_de);
-
-done:
-	if (retval < 0)
-		pr_err("%s: set de-emphasis failed with %d", __func__, retval);
-
-	return retval;
-}
 
 /*
  * si4705_set_chan - set the channel
@@ -175,7 +136,7 @@ static int si4705_get_freq(struct si4705_device *radio, unsigned int *freq)
 	retval = si4705_fm_tune_status(radio, 0x00, 0x00,
 		NULL, &chan, NULL, NULL, NULL);
 
-	*freq = FREQ_DEV_TO_V4L2(chan);
+	*freq = chan * FREQ_MUL / 100;
 
 	pr_info("%s: frequency = %d", __func__, chan);
 
@@ -189,7 +150,7 @@ int si4705_set_freq(struct si4705_device *radio, unsigned int freq)
 {
 	u16 chan = 0;
 
-	chan = FREQ_V4L2_TO_DEV(freq);
+	chan = freq * 100 / FREQ_MUL;
 
 	return si4705_set_chan(radio, chan);
 }
@@ -261,7 +222,6 @@ done:
 int si4705_start(struct si4705_device *radio)
 {
 	int retval;
-	u16 threshold;
 
 	retval = si4705_power_up(radio);
 	if (retval < 0)
@@ -272,7 +232,7 @@ int si4705_start(struct si4705_device *radio)
 	if (retval < 0)
 		goto done;
 
-	retval = si4705_set_deemphasis(radio, de);
+	retval = si4705_set_property(radio, FM_DEEMPHASIS, de);
 	if (retval < 0)
 		goto done;
 
@@ -288,17 +248,11 @@ int si4705_start(struct si4705_device *radio)
 	if (retval < 0)
 		goto done;
 
-	threshold = si4705_get_seek_tune_snr_threshold_value(radio);
-
-	retval = si4705_set_property(radio,
-				     FM_SEEK_TUNE_SNR_THRESHOLD, threshold);
+	retval = si4705_set_property(radio, FM_SEEK_TUNE_SNR_THRESHOLD, 0x01);
 	if (retval < 0)
 		goto done;
 
-	threshold = si4705_get_seek_tune_rssi_threshold_value(radio);
-
-	retval = si4705_set_property(radio,
-				     FM_SEEK_TUNE_RSSI_THRESHOLD, threshold);
+	retval = si4705_set_property(radio, FM_SEEK_TUNE_RSSI_THRESHOLD, 0x00);
 	if (retval < 0)
 		goto done;
 
@@ -595,8 +549,8 @@ static int si4705_vidioc_g_ctrl(struct file *file, void *priv,
 		if (retval)
 			goto done;
 
-		vol_mute &= RX_VOLUME_MASK;
-		ctrl->value = si4705_vol_conv_value_to_index(radio, vol_mute);
+		ctrl->value = (vol_mute / 4) & RX_VOLUME_MASK;
+
 		break;
 	case V4L2_CID_AUDIO_MUTE:
 
@@ -606,9 +560,6 @@ static int si4705_vidioc_g_ctrl(struct file *file, void *priv,
 
 		ctrl->value = (vol_mute == 0) ? 1 : 0;
 		break;
-	/*
-	 * TODO : need to support op_mode change lp_mode <-> rich_mode
-	 */
 	default:
 		retval = -EINVAL;
 	}
@@ -630,7 +581,6 @@ static int si4705_vidioc_s_ctrl(struct file *file, void *priv,
 {
 	struct si4705_device *radio = video_drvdata(file);
 	int retval = 0;
-	u16 vol;
 
 	mutex_lock(&radio->lock);
 	/* safety checks */
@@ -640,8 +590,7 @@ static int si4705_vidioc_s_ctrl(struct file *file, void *priv,
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_VOLUME:
-		vol = si4705_vol_conv_index_to_value(radio, ctrl->value);
-		retval = si4705_set_property(radio, RX_VOLUME, vol);
+		retval = si4705_set_property(radio, RX_VOLUME, ctrl->value * 4);
 		break;
 	case V4L2_CID_AUDIO_MUTE:
 		if (ctrl->value == 1)
@@ -650,13 +599,6 @@ static int si4705_vidioc_s_ctrl(struct file *file, void *priv,
 			retval = si4705_set_property(radio, RX_HARD_MUTE, 0x00);
 
 		break;
-	case V4L2_CID_TUNE_DEEMPHASIS:
-		retval = si4705_set_deemphasis(radio, ctrl->value);
-		break;
-
-	/*
-	 * TODO : need to support op_mode change lp_mode <-> rich_mode
-	 */
 	default:
 		retval = -EINVAL;
 	}
@@ -734,8 +676,8 @@ static int si4705_vidioc_g_tuner(struct file *file, void *priv,
 	if (retval)
 		goto done;
 
-	tuner->rangelow  = FREQ_DEV_TO_V4L2(bandLow);
-	tuner->rangehigh = FREQ_DEV_TO_V4L2(bandHigh);
+	tuner->rangelow  = bandLow * FREQ_MUL / 100;
+	tuner->rangehigh = bandHigh * FREQ_MUL / 100;
 
 	/* stereo indicator == stereo (instead of mono) */
 	if ((stblend & FM_RSQ_STATUS_OUT_STBLEND) == 0)
@@ -762,10 +704,11 @@ static int si4705_vidioc_g_tuner(struct file *file, void *priv,
 	else
 		tuner->audmode = V4L2_TUNER_MODE_STEREO;
 
-	/* V4L2 does not specify how to use signal strength field. */
-	/* it just descripbes higher is a better signal */
-	/* update rssi value as real dbµV unit */
+	/* min is worst, max is best; signal:0..0xffff; rssi: 0..0xff */
+	/* measured in units of dbµV in 1 db increments (max at ~75 dbµV) */
 	tuner->signal = rssi;
+	/* the ideal factor is 0xffff/75 = 873,8 */
+	tuner->signal = tuner->signal * (873 * 10 + 8) / 10;
 
 	/* automatic frequency control: -1: freq to low, 1 freq to high */
 	/* AFCRL does only indicate that freq. differs, not if too low/high */
@@ -789,8 +732,6 @@ static int si4705_vidioc_s_tuner(struct file *file, void *priv,
 	int retval = 0;
 	u16 stereo_th = 0;
 	u16 mono_th = 0;
-	u16 bandLow = 0;
-	u16 bandHigh = 0;
 
 	mutex_lock(&radio->lock);
 	/* safety checks */
@@ -823,22 +764,6 @@ static int si4705_vidioc_s_tuner(struct file *file, void *priv,
 	retval = si4705_set_property(radio, FM_BLEND_MONO_THRESHOLD, mono_th);
 	if (retval < 0)
 		goto done;
-
-	/* range limit */
-	if (tuner->rangelow) {
-		bandLow = FREQ_V4L2_TO_DEV(tuner->rangelow);
-		retval = si4705_set_property(radio,
-						FM_SEEK_BAND_BOTTOM, bandLow);
-		if (retval < 0)
-			goto done;
-	}
-
-	if (tuner->rangehigh) {
-		bandHigh = FREQ_V4L2_TO_DEV(tuner->rangehigh);
-		retval = si4705_set_property(radio, FM_SEEK_BAND_TOP, bandHigh);
-		if (retval < 0)
-			goto done;
-	}
 
 done:
 	if (retval < 0)

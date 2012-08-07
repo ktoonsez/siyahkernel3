@@ -46,11 +46,7 @@
 #include <linux/io.h>
 #include <mach/map.h>
 #include "tspdrv.h"
-#ifdef CONFIG_MOTOR_DRV_ISA1200
-#include "ImmVibeSPI_isa1200.c"
-#else
 #include "ImmVibeSPI.c"
-#endif
 #if defined(VIBE_DEBUG) && defined(VIBE_RECORD)
 #include <tspdrvRecorder.c>
 #endif

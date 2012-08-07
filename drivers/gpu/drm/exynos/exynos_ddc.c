@@ -26,6 +26,8 @@ static int s5p_ddc_probe(struct i2c_client *client,
 {
 	hdmi_attach_ddc_client(client);
 
+	/* TODO. */
+
 	dev_info(&client->adapter->dev, "attached s5p_ddc "
 		"into i2c adapter successfully\n");
 
@@ -36,6 +38,8 @@ static int s5p_ddc_remove(struct i2c_client *client)
 {
 	dev_info(&client->adapter->dev, "detached s5p_ddc "
 		"from i2c adapter successfully\n");
+
+	/* TODO. */
 
 	return 0;
 }
@@ -55,3 +59,4 @@ struct i2c_driver ddc_driver = {
 	.remove		= __devexit_p(s5p_ddc_remove),
 	.command		= NULL,
 };
+EXPORT_SYMBOL(ddc_driver);

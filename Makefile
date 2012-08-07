@@ -368,15 +368,8 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
-<<<<<<< HEAD
 		   -fno-delete-null-pointer-checks 
 		   
-=======
-		   -fno-delete-null-pointer-checks \
-		   -marm -march=armv7-a -mtune=cortex-a9 \
-		   -funswitch-loops -fpredictive-commoning \
-		   -fmodulo-sched -fmodulo-sched-allow-regmoves
->>>>>>> upstream/ics
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
