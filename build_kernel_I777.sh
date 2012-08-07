@@ -1,6 +1,6 @@
 #!/bin/sh
 export KERNELDIR=`readlink -f .`
-export INITRAMFS_SOURCE=`readlink -f $KERNELDIR/../initramfs3`
+export INITRAMFS_SOURCE=`readlink -f $KERNELDIR/../initramfsJB`
 export PARENT_DIR=`readlink -f ..`
 export USE_SEC_FIPS_MODE=true
 

@@ -129,6 +129,7 @@ typedef struct cmd_tlv {
 #define CMD_OKC_ENABLE		"OKC_ENABLE"
 #endif
 
+<<<<<<< HEAD
 #ifdef SUPPORT_AMPDU_MPDU_CMD
 #define CMD_AMPDU_MPDU "AMPDU_MPDU"
 #endif
@@ -138,6 +139,15 @@ typedef struct cmd_tlv {
 #define CMD_RESTORE_RL  "RESTORE_RL"
 #endif /* VSDB */
 
+=======
+#ifdef BCM4334_CHIP		//ampdu_mpdu
+#define CMD_AMPDU_MPDU "AMPDU_MPDU"
+#endif
+#ifdef VSDB
+#define CMD_CHANGE_RL 	"CHANGE_RL"
+#define CMD_RESTORE_RL  "RESTORE_RL"
+#endif
+>>>>>>> upstream/ics
 typedef struct android_wifi_priv_cmd {
 	char *buf;
 	int used_len;
@@ -772,6 +782,77 @@ done:
 }
 
 static int
+<<<<<<< HEAD
+=======
+wl_android_set_auto_channel(struct net_device *dev, const char* string_num,
+									char* command, int total_len)
+{
+	int channel;
+	int chosen = 0;
+	int retry = 0;
+	int ret = 0;
+
+	/* Restrict channel to 1 - 7: 2GHz, 20MHz BW, No SB */
+	u32 req_buf[8] = {7, 0x2B01, 0x2B02, 0x2B03, 0x2B04, 0x2B05, 0x2B06,
+						0x2B07};
+
+	/* Auto channel select */
+	wl_uint32_list_t request;
+
+	channel = my_atoi(string_num);
+	DHD_INFO(("%s : HAPD_AUTO_CHANNEL = %d\n", __FUNCTION__, channel));
+
+	if (channel == 20)
+		ret = wldev_ioctl(dev, WLC_START_CHANNEL_SEL, (void *)&req_buf,
+							sizeof(req_buf), true);
+	else { /* channel == 0 */
+		request.count = htod32(0);
+		ret = wldev_ioctl(dev, WLC_START_CHANNEL_SEL, (void *)&request,
+							sizeof(request), true);
+	}
+
+	if (ret < 0) {
+		DHD_ERROR(("%s: can't start auto channel scan, err = %d\n",
+					__FUNCTION__, ret));
+		channel = 0;
+		goto done;
+	}
+
+	/* Wait for auto channel selection, max 2500 ms */
+	bcm_mdelay(500);
+
+	retry = 10;
+	while(retry--) {
+		ret = wldev_ioctl(dev, WLC_GET_CHANNEL_SEL, &chosen, sizeof(chosen),
+							false);
+		if (ret < 0 || dtoh32(chosen) == 0) {
+			DHD_INFO(("%s: %d tried, ret = %d, chosen = %d\n",
+						__FUNCTION__, (10 - retry), ret, chosen));
+			bcm_mdelay(200);
+		}
+		else {
+			channel = (u16)chosen & 0x00FF;
+			DHD_ERROR(("%s: selected channel = %d\n", __FUNCTION__, channel));
+			break;
+		}
+	}
+
+	if (retry == 0)	{
+		DHD_ERROR(("%s: auto channel timed out, failed\n", __FUNCTION__));
+		channel = 0;
+	}
+
+done:
+//	snprintf(command, total_len, "%d", channel);
+	snprintf(command, 4, "%d", channel);
+	DHD_INFO(("%s: command result is %s\n", __FUNCTION__, command));
+
+//	return 1;
+	return 4;
+}
+
+static int
+>>>>>>> upstream/ics
 wl_android_set_max_num_sta(struct net_device *dev, const char* string_num)
 {
 	int max_assoc;
@@ -889,6 +970,7 @@ wl_android_ch_res_rl(struct net_device *dev, bool change)
 	int error = 0;
 	s32 srl = 7;
 	s32 lrl = 4;
+<<<<<<< HEAD
 	printk(KERN_INFO "%s enter\n", __FUNCTION__);
 	if (change) {
 		srl = 4;
@@ -904,18 +986,40 @@ wl_android_ch_res_rl(struct net_device *dev, bool change)
 	if (error)
 		DHD_ERROR(("Failed to set LRL, error = %d\n", error));
 
+=======
+	printk("%s enter\n", __FUNCTION__);
+	if (change) {
+		srl = 4;
+		lrl = 2;
+	}	
+	error = wldev_ioctl(dev, WLC_SET_SRL, &srl,
+			sizeof(s32), true);
+	if (error) {
+		DHD_ERROR(("Failed to set SRL, error = %d\n", error));
+	}
+	error = wldev_ioctl(dev, WLC_SET_LRL, &lrl,
+			sizeof(s32), true);
+	if (error) {
+		DHD_ERROR(("Failed to set LRL, error = %d\n", error));
+	}
+>>>>>>> upstream/ics
 	return error;
 }
 #endif
 
+<<<<<<< HEAD
 #ifdef SUPPORT_AMPDU_MPDU_CMD
 /* CMD_AMPDU_MPDU */
+=======
+#ifdef BCM4334_CHIP		//ampdu_mpdu
+>>>>>>> upstream/ics
 static int
 wl_android_set_ampdu_mpdu(struct net_device *dev, const char* string_num)
 {
 	int err = 0;
 	int ampdu_mpdu;
 
+<<<<<<< HEAD
 	ampdu_mpdu = bcm_atoi(string_num);
 
 	if (ampdu_mpdu > 32) {
@@ -929,6 +1033,22 @@ wl_android_set_ampdu_mpdu(struct net_device *dev, const char* string_num)
 		return -1;
 	}
 
+=======
+	//ampdu_mpdu = my_atoi(string_num);
+	ampdu_mpdu = bcm_atoi(string_num);
+
+	if (ampdu_mpdu > 32) {
+		DHD_ERROR(("%s : ampdu_mpdu MAX value is 32.\n", __FUNCTION__));
+		return -1;
+	}
+	DHD_ERROR(("%s : ampdu_mpdu = %d\n", __FUNCTION__, ampdu_mpdu));
+	err = wldev_iovar_setint(dev, "ampdu_mpdu", ampdu_mpdu);
+	if (err < 0) {
+		DHD_ERROR(("%s : ampdu_mpdu set error. %d\n", __FUNCTION__, err));
+		return -1;
+	}
+
+>>>>>>> upstream/ics
 	return 0;
 }
 #endif
@@ -1026,7 +1146,7 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	else if (strnicmp(command, CMD_BTCOEXMODE, strlen(CMD_BTCOEXMODE)) == 0) {
 #if !defined(CUSTOMER_HW_SAMSUNG)
 		uint mode = *(command + strlen(CMD_BTCOEXMODE) + 1) - '0';
-
+#if 0
 		if (mode == 1)
 			net_os_set_packet_filter(net, 0); /* DHCP starts */
 		else
@@ -1130,7 +1250,13 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	else if (strnicmp(command, CMD_SET_HAPD_AUTO_CHANNEL,
 				strlen(CMD_SET_HAPD_AUTO_CHANNEL)) == 0) {
 		int skip = strlen(CMD_SET_HAPD_AUTO_CHANNEL) + 3;
+<<<<<<< HEAD
 		bytes_written = wl_android_set_auto_channel(net, (const char *)command+skip, command,
+=======
+//		wl_android_set_auto_channel(net, (const char*)command+skip, command,
+//									priv_cmd.total_len);
+		bytes_written = wl_android_set_auto_channel(net, (const char*)command+skip, command,
+>>>>>>> upstream/ics
 									priv_cmd.total_len);
 	}
 	else if (strnicmp(command, CMD_SET_HAPD_MAX_NUM_STA,
@@ -1170,8 +1296,12 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		bytes_written = wl_android_get_assoc_res_ies(net, command);
 	}
 #endif /* BCMCCX */
+<<<<<<< HEAD
 #ifdef SUPPORT_AMPDU_MPDU_CMD
 	/* CMD_AMPDU_MPDU */
+=======
+#ifdef BCM4334_CHIP		//ampdu_mpdu
+>>>>>>> upstream/ics
 	else if (strnicmp(command, CMD_AMPDU_MPDU,strlen(CMD_AMPDU_MPDU)) == 0) {
 		int skip = strlen(CMD_AMPDU_MPDU) + 1;
 		bytes_written = wl_android_set_ampdu_mpdu(net, (const char*)command+skip);
@@ -1182,7 +1312,11 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		bytes_written = wl_android_ch_res_rl(net, true);
 	else if (strnicmp(command, CMD_RESTORE_RL, strlen(CMD_RESTORE_RL)) == 0)
 		bytes_written = wl_android_ch_res_rl(net, false);
+<<<<<<< HEAD
 #endif /* VSDB */
+=======
+#endif
+>>>>>>> upstream/ics
 	else {
 		if ((strnicmp(command, CMD_START, strlen(CMD_START)) != 0) &&
 			(strnicmp(command, CMD_SETFWPATH, strlen(CMD_SETFWPATH)) != 0))
@@ -1397,7 +1531,11 @@ static int wifi_remove(struct platform_device *pdev)
 	DHD_ERROR(("## %s\n", __FUNCTION__));
 	wifi_control_data = wifi_ctrl;
 
+<<<<<<< HEAD
 	wifi_set_power(0, 200);	/* Power Off */
+=======
+	wifi_set_power(0, 100);	/* Power Off */
+>>>>>>> upstream/ics
 	wifi_set_carddetect(0);	/* CardDetect (1->0) */
 
 	up(&wifi_control_sem);
@@ -1408,10 +1546,13 @@ int dhd_os_check_wakelock(void *dhdp);
 static int wifi_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	DHD_TRACE(("##> %s\n", __FUNCTION__));
+<<<<<<< HEAD
 #if defined(BCMHOST)
 	if (dhd_os_check_wakelock(bcmsdh_get_drvdata()))
 		return -EBUSY;
 #endif
+=======
+>>>>>>> upstream/ics
 #if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 39)) && defined(OOB_INTR_ONLY) && 1
 	bcmsdh_oob_intr_set(0);
 #endif /* (OOB_INTR_ONLY) */

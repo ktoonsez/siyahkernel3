@@ -48,7 +48,11 @@
 
 #define	WLDEV_INFO(args)						\
 	do {								\
+<<<<<<< HEAD
 		printk(KERN_INFO "WLDEV-INFO) %s : ", __func__);	\
+=======
+		printk(KERN_INFO "WLDEV-ERROR) %s : ", __func__);	\
+>>>>>>> upstream/ics
 		printk args;					\
 	} while (0)
 

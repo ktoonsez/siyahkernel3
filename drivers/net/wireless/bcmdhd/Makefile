@@ -89,7 +89,11 @@ DHDCFLAGS += -DCONFIG_DHD_USE_STATIC_BUF
 endif
 
 # For CCX
+<<<<<<< HEAD
 ifeq ($(CONFIG_BRCM_CCX),y)
+=======
+ifneq ($(CONFIG_TARGET_LOCALE_KOR),y)
+>>>>>>> upstream/ics
 DHDCFLAGS += -DBCMCCX
 endif
 

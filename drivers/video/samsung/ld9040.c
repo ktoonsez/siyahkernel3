@@ -361,6 +361,18 @@ declare_store(max_gamma) {
 		max_gamma = val;
 	}
 	return size;
+<<<<<<< HEAD
+=======
+}
+declare_store(min_bl) {	
+	int val;
+	if(sscanf(buf,"%d",&val)==1) {
+		if(val>200) val=200;
+		else if(val<0) val=0;
+		min_bl = val;
+	}
+	return size;
+>>>>>>> upstream/ics
 }
 declare_store(min_bl) {	
 	int val;
@@ -392,6 +404,29 @@ static struct attribute *brightness_curve_attributes[] = {
 	NULL
 };
 
+<<<<<<< HEAD
+=======
+#define declare_attr_rw(filename, perm) \
+	static DEVICE_ATTR(filename, perm, show_##filename, store_##filename)
+#define declare_attr_ro(filename, perm) \
+	static DEVICE_ATTR(filename, perm, show_##filename, NULL)
+#define declare_attr_wo(filename, perm) \
+	static DEVICE_ATTR(filename, perm, NULL, store_##filename)
+
+declare_attr_ro(author, 0444);
+declare_attr_rw(min_gamma, 0666);
+declare_attr_rw(max_gamma, 0666);
+declare_attr_rw(min_bl, 0666);
+
+static struct attribute *brightness_curve_attributes[] = {
+	&dev_attr_min_gamma.attr,
+	&dev_attr_max_gamma.attr,
+	&dev_attr_min_bl.attr,
+	&dev_attr_author.attr,
+	NULL
+};
+
+>>>>>>> upstream/ics
 static struct attribute_group brightness_curve_group = {
 		.attrs  = brightness_curve_attributes,
 };
@@ -744,7 +779,9 @@ static int ld9040_get_power(struct lcd_device *ld)
 
 static int ld9040_get_brightness(struct backlight_device *bd)
 {
-	return bd->props.brightness;
+	struct lcd_info *lcd = bl_get_data(bd);
+
+	return candela_table[lcd->bl];
 }
 
 static int ld9040_set_brightness(struct backlight_device *bd)

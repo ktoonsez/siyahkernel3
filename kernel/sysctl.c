@@ -245,7 +245,11 @@ rom_feature_set_sysctl(struct ctl_table *table, int write,
 		if( (rom_feature_set & 0x10) == 0x10)
 		{
 			rom_feature_set = rom_feature_set_save;
+<<<<<<< HEAD
 			u1_gps_ntt_init();
+=======
+			//u1_gps_ntt_init();
+>>>>>>> upstream/ics
 			return 0;
 		}
 		rom_feature_set_save = rom_feature_set;

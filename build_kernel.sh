@@ -38,6 +38,10 @@ rm -rf $INITRAMFS_TMP/.hg
 #copy modules into initramfs
 mkdir -p $INITRAMFS/lib/modules
 find -name '*.ko' -exec cp -av {} $INITRAMFS_TMP/lib/modules/ \;
+<<<<<<< HEAD
+=======
+chmod 644 $INITRAMFS_TMP/lib/modules/*
+>>>>>>> upstream/ics
 ${CROSS_COMPILE}strip --strip-unneeded $INITRAMFS_TMP/lib/modules/*
 
 nice -n 10 make -j3 zImage CONFIG_INITRAMFS_SOURCE="$INITRAMFS_TMP" || exit 1

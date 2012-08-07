@@ -4688,11 +4688,22 @@ dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			}
 
 			/* Check window for sanity */
+#ifdef BCM4334_CHIP
+			if ((uint8)(txmax - bus->tx_seq) > 0x40) {
+					DHD_ERROR(("%s: got unlikely tx max %d with tx_seq %d\n",
+						__FUNCTION__, txmax, bus->tx_seq));
+					txmax = bus->tx_max;
+					bus->dhd->tx_seqerr_cnt++;
+			}
+			else
+				bus->dhd->tx_seqerr_cnt = 0;
+#else
 			if ((uint8)(txmax - bus->tx_seq) > 0x40) {
 					DHD_ERROR(("%s: got unlikely tx max %d with tx_seq %d\n",
 						__FUNCTION__, txmax, bus->tx_seq));
 					txmax = bus->tx_max;
 			}
+#endif
 			bus->tx_max = txmax;
 
 #ifdef DHD_DEBUG
@@ -4845,11 +4856,22 @@ dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 		}
 
 		/* Check window for sanity */
+#ifdef BCM4334_CHIP
+		if ((uint8)(txmax - bus->tx_seq) > 0x40) {
+			DHD_ERROR(("%s: got unlikely tx max %d with tx_seq %d\n",
+			           __FUNCTION__, txmax, bus->tx_seq));
+			txmax = bus->tx_max;
+			bus->dhd->tx_seqerr_cnt++;
+		}
+		else
+			bus->dhd->tx_seqerr_cnt = 0;
+#else
 		if ((uint8)(txmax - bus->tx_seq) > 0x40) {
 			DHD_ERROR(("%s: got unlikely tx max %d with tx_seq %d\n",
 			           __FUNCTION__, txmax, bus->tx_seq));
 			txmax = bus->tx_max;
 		}
+#endif
 		bus->tx_max = txmax;
 
 		/* Call a separate function for control frames */
@@ -5843,7 +5865,12 @@ dhd_bus_watchdog(dhd_pub_t *dhdp)
 					if (SLPAUTO_ENAB(bus)) {
 						if (dhdsdio_bussleep(bus, TRUE) != BCME_BUSY)
 							dhd_os_wd_timer(bus->dhd, 0);
+<<<<<<< HEAD
 			} else
+=======
+					}
+					else
+>>>>>>> upstream/ics
 						dhdsdio_clkctl(bus, CLK_NONE, FALSE);
 
 			bus->idlecount = 0;
@@ -6168,12 +6195,15 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 		goto fail;
 	}
 
+<<<<<<< HEAD
 #ifdef BCMHOST_XTAL_PU_TIME_MOD
 #ifdef BCM4334_CHIP
 	bcmsdh_reg_write(bus->sdh, 0x18000620, 2, 11);
 	bcmsdh_reg_write(bus->sdh, 0x18000628, 4, 0x00F80001);
 #endif
 #endif
+=======
+>>>>>>> upstream/ics
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
 	mutex_unlock(&_dhd_sdio_mutex_lock_);
 	DHD_ERROR(("%s : the lock is released.\n", __FUNCTION__));

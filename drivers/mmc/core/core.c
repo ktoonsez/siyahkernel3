@@ -214,7 +214,12 @@ static void __mmc_start_req(struct mmc_host *host, struct mmc_request *mrq)
 	}
 
 #if (defined(CONFIG_MIDAS_COMMON) && !defined(CONFIG_EXYNOS4_DEV_DWMCI)) || \
+<<<<<<< HEAD
 	defined(CONFIG_MACH_U1) || defined(CONFIG_MACH_SLP_NAPLES)
+=======
+	defined(CONFIG_MACH_U1) || defined(CONFIG_MACH_SLP_NAPLES) || \
+	defined(CONFIG_MACH_TRATS)
+>>>>>>> upstream/ics
 #ifndef CONFIG_MMC_POLLING_WAIT_CMD23
 
 	if(mrq->sbc) {
@@ -245,8 +250,13 @@ static void __mmc_start_req(struct mmc_host *host, struct mmc_request *mrq)
 		mrq->data = tmp_mrq.data;
 		mmc_start_request(host, mrq);
 	} else
+<<<<<<< HEAD
 #endif
 #endif
+=======
+#endif
+#endif
+>>>>>>> upstream/ics
 		mmc_start_request(host, mrq);
 }
 
@@ -2719,7 +2729,11 @@ static void __exit mmc_exit(void)
 	destroy_workqueue(workqueue);
 }
 
+#ifdef CONFIG_FAST_RESUME
+beforeresume_initcall(mmc_init);
+#else
 subsys_initcall(mmc_init);
+#endif
 module_exit(mmc_exit);
 
 MODULE_LICENSE("GPL");
