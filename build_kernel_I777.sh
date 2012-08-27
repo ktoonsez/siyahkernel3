@@ -10,7 +10,7 @@ fi
 
 export ARCH=arm
 # export CROSS_COMPILE=$PARENT_DIR/linaro4.7-2012.04/bin/arm-eabi-
-export CROSS_COMPILE=/home/ktoonsez/android/system/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
+export CROSS_COMPILE=/home/ktoonsez/androidjb/system/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
 
 echo "Remove old zImage"
 rm zImage
