@@ -309,11 +309,10 @@ dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifindex, wl_ioctl_t *ioc, void *buf, int le
 
 	ret = dhd_prot_ioctl(dhd_pub, ifindex, ioc, buf, len);
 #ifdef BCM4334_CHIP
-	if (!ret || ret == -ETIMEDOUT || (dhd_pub->tx_seqerr_cnt >= 2))
+	if (!ret || ret == -ETIMEDOUT || (dhd_pub->tx_seq_badcnt >= 2))
 #else
 	if (!ret || ret == -ETIMEDOUT)
 #endif
-		if (dhd_pub->up)
 		dhd_os_check_hang(dhd_pub, ifindex, ret);
 
 	dhd_os_proto_unblock(dhd_pub);
@@ -587,8 +586,10 @@ dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, void *pkt, int prec)
 	if (pktq_pfull(q, prec))
 		eprec = prec;
 	else if (pktq_full(q)) {
+#if defined(BCMASSERT_LOG)
 		p = pktq_peek_tail(q, &eprec);
-//		ASSERT(p);
+		ASSERT(p);
+#endif
 		if (eprec > prec || eprec < 0)
 			return FALSE;
 	}
@@ -607,9 +608,11 @@ dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, void *pkt, int prec)
 		PKTFREE(dhdp->osh, p, TRUE);
 	}
 
+#if defined(BCMASSERT_LOG)
 	/* Enqueue */
 	p = pktq_penq(q, prec, pkt);
-//	ASSERT(p);
+	ASSERT(p);
+#endif
 
 	return TRUE;
 }
