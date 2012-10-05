@@ -124,7 +124,7 @@ config CPU_FREQ_DEFAULT_GOV_INTERACTIVE
 
 config CPU_FREQ_DEFAULT_GOV_SLEEPY
 	bool "sleepy"
-	select CPU_FREQ_GOV_SCARY
+	select CPU_FREQ_GOV_SLEEPY
 	help
 	  Use the CPUFreq governor 'sleepy' as default.
 
